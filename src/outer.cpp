@@ -66,43 +66,6 @@ miopenStatus_t OuterForward(Handle& handle,
     return miopenStatusSuccess;
 }
 
-miopenStatus_t OuterBackward(Handle& handle,
-                             const TensorDescriptor& x1Desc,
-                             ConstData_t x1,
-                             const TensorDescriptor& x2Desc,
-                             ConstData_t x2,
-                             const TensorDescriptor& x1GradDesc,
-                             Data_t x1Grad,
-                             const TensorDescriptor& x2GradDesc,
-                             Data_t x2Grad,
-                             const TensorDescriptor& yGradDesc,
-                             ConstData_t yGrad)
-{
-    const auto problem =
-        outer::BwdProblemDescription(x1Desc, x2Desc, x1GradDesc, x2GradDesc, yGradDesc);
-    const auto invoke_params = [&]() {
-        auto result       = outer::BwdInvokeParams{};
-        result.x1Desc     = &x1Desc;
-        result.x2Desc     = &x2Desc;
-        result.x1GradDesc = &x1GradDesc;
-        result.x2GradDesc = &x2GradDesc;
-        result.yGradDesc  = &yGradDesc;
-        result.x1         = x1;
-        result.x2         = x2;
-        result.x1Grad     = x1Grad;
-        result.x2Grad     = x2Grad;
-        result.yGrad      = yGrad;
-        return result;
-    }();
-
-    const auto algo    = AlgorithmName{"OuterBackward"};
-    const auto solvers = solver::SolverContainer<solver::outer::OuterBackward>{};
-
-    solvers.ExecutePrimitive(handle, problem, algo, invoke_params);
-
-    return miopenStatusSuccess;
-}
-
 } // namespace outer
 
 } // namespace miopen

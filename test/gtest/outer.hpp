@@ -24,7 +24,6 @@
  *
  *******************************************************************************/
 
-#include "../driver/tensor_driver.hpp"
 #include "cpu_outer.hpp"
 #include "get_handle.hpp"
 #include "random.hpp"
@@ -36,31 +35,54 @@
 
 struct OuterTestCase
 {
-    size_t N;
     size_t M;
+    size_t N;
+    bool isContiguous;
+
     friend std::ostream& operator<<(std::ostream& os, const OuterTestCase& tc)
     {
-        return os << " N:" << tc.N << " M:" << tc.M;
+        return os << " N:" << tc.N << " M:" << tc.M << " contiguous " << tc.isContiguous;
     }
 
-    std::vector<size_t> GetInput() { return std::vector<size_t>({N, M}); }
+    OuterTestCase() {}
+
+    OuterTestCase(size_t M_, size_t N_, bool cont_) : M(M_), N(N_), isContiguous(cont_) {}
+
+    std::vector<size_t> ComputeStrides(const std::vector<size_t>& input_dim_) const
+    {
+        std::vector<size_t> inputDim = input_dim_;
+        if(!isContiguous)
+            std::swap(inputDim.front(), inputDim.back());
+        std::vector<size_t> strides(inputDim.size());
+        strides.back() = 1;
+        for(int i = inputDim.size() - 2; i >= 0; --i)
+            strides[i] = strides[i + 1] * inputDim[i + 1];
+        if(!isContiguous)
+            std::swap(strides.front(), strides.back());
+        return strides;
+    }
 };
 
-std::vector<OuterTestCase> OuterFwdTestConfigs()
+inline std::vector<OuterTestCase> GenFullTestCases()
 {
-    return {{512, 128},
-            {512, 32768},
-            {2048, 128},
-            {2048, 256},
-            {2048, 512},
-            {32768, 32},
-            {32768, 64},
-            {32768, 128}};
-}
-
-std::vector<OuterTestCase> OuterBwdTestConfigs()
-{
-    return {{16, 16}, {16, 32}, {16, 64}, {16, 128}, {32, 16}, {32, 32}, {32, 64}, {32, 128}};
+    return {{512, 128, true},
+            {512, 256, true},
+            {512, 512, true},
+            {2048, 128, true},
+            {2048, 256, true},
+            {2048, 512, true},
+            {32768, 32, true},
+            {32768, 64, true},
+            {32768, 128, true},
+            {512, 128, false},
+            {512, 256, false},
+            {512, 512, false},
+            {2048, 128, false},
+            {2048, 256, false},
+            {2048, 512, false},
+            {32768, 32, false},
+            {32768, 64, false},
+            {32768, 128, false}};
 }
 
 template <typename T = float>
@@ -69,169 +91,63 @@ struct OuterFwdTest : public ::testing::TestWithParam<OuterTestCase>
 protected:
     void SetUp() override
     {
-        auto&& handle  = get_handle();
-        outer_config   = GetParam();
-        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1, 10); };
+        auto&& handle   = get_handle();
+        outer_config    = GetParam();
+        auto gen_value1 = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 100); };
+        auto gen_value2 = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1e-2, 99); };
 
-        auto in_dims = outer_config.GetInput();
+        auto M = outer_config.M;
+        auto N = outer_config.N;
 
-        input1 = tensor<T>{std::vector<size_t>({in_dims[0]})}.generate(gen_value);
-        input2 = tensor<T>{std::vector<size_t>({in_dims[1]})}.generate(gen_value);
+        x1 = tensor<T>{std::vector<size_t>({M})}.generate(gen_value1);
+        x2 = tensor<T>{std::vector<size_t>({N})}.generate(gen_value2);
 
-        std::vector<size_t> out_dims;
+        std::vector<size_t> y_dims{M, N};
+        auto y_stride = outer_config.ComputeStrides(y_dims);
+        y             = tensor<T>{y_dims, y_stride};
+        std::fill(y.begin(), y.end(), std::numeric_limits<T>::quiet_NaN());
 
-        for(int i = 0; i < in_dims.size(); i++)
-        {
-            out_dims.push_back(in_dims[i]);
-        }
+        ref_y = tensor<T>{y_dims, y_stride};
+        std::fill(ref_y.begin(), ref_y.end(), std::numeric_limits<T>::quiet_NaN());
 
-        output = tensor<T>{out_dims};
-        std::fill(output.begin(), output.end(), std::numeric_limits<T>::quiet_NaN());
-
-        ref_output = tensor<T>{out_dims};
-        std::fill(ref_output.begin(), ref_output.end(), std::numeric_limits<T>::quiet_NaN());
-
-        input1_dev = handle.Write(input1.data);
-        input2_dev = handle.Write(input2.data);
-        output_dev = handle.Write(output.data);
+        x1_dev = handle.Write(x1.data);
+        x2_dev = handle.Write(x2.data);
+        y_dev  = handle.Write(y.data);
     }
+
     void RunTest()
     {
         auto&& handle = get_handle();
 
-        cpu_outer_forward<T>(input1, input2, ref_output);
+        cpu_outer_forward<T>(x1, x2, ref_y);
         miopenStatus_t status;
 
-        status = miopen::OuterForward(handle,
-                                      input1.desc,
-                                      input1_dev.get(),
-                                      input2.desc,
-                                      input2_dev.get(),
-                                      output.desc,
-                                      output_dev.get());
+        status = miopen::outer::OuterForward(
+            handle, x1.desc, x1_dev.get(), x2.desc, x2_dev.get(), y.desc, y_dev.get());
 
         EXPECT_EQ(status, miopenStatusSuccess);
 
-        output.data = handle.Read<T>(output_dev, output.data.size());
+        y.data = handle.Read<T>(y_dev, y.data.size());
     }
 
     void Verify()
     {
         double threshold = std::numeric_limits<T>::epsilon();
-        auto error       = miopen::rms_range(ref_output, output);
+        auto error       = miopen::rms_range(ref_y, y);
 
-        EXPECT_TRUE(miopen::range_distance(ref_output) == miopen::range_distance(output));
-        EXPECT_TRUE(error < threshold * 10) << "Error output beyond tolerance Error:" << error
-                                            << ",  Thresholdx10: " << threshold * 10;
+        EXPECT_EQ(miopen::range_distance(ref_y), miopen::range_distance(y));
+        EXPECT_LT(error, threshold * 10);
     }
+
     OuterTestCase outer_config;
 
-    tensor<T> input1;
-    tensor<T> input2;
-    tensor<T> output;
+    tensor<T> x1;
+    tensor<T> x2;
+    tensor<T> y;
 
-    tensor<T> ref_output;
+    tensor<T> ref_y;
 
-    miopen::Allocator::ManageDataPtr input1_dev;
-    miopen::Allocator::ManageDataPtr input2_dev;
-    miopen::Allocator::ManageDataPtr output_dev;
-};
-
-template <typename T = float>
-struct OuterBwdTest : public ::testing::TestWithParam<OuterTestCase>
-{
-protected:
-    void SetUp() override
-    {
-        auto&& handle  = get_handle();
-        outer_config   = GetParam();
-        auto gen_value = [](auto...) { return prng::gen_descreet_uniform_sign<T>(1, 10); };
-
-        auto in_dims = outer_config.GetInput();
-
-        input1 = tensor<T>{std::vector<size_t>({in_dims[0]})}.generate(gen_value);
-        input2 = tensor<T>{std::vector<size_t>({in_dims[1]})}.generate(gen_value);
-
-        std::vector<size_t> out_dims;
-        for(int i = 0; i < in_dims.size(); i++)
-        {
-            out_dims.push_back(in_dims[i]);
-        }
-        outputGrad = tensor<T>{out_dims}.generate(gen_value);
-
-        input1Grad = tensor<T>{std::vector<size_t>({in_dims[0]})};
-        input2Grad = tensor<T>{std::vector<size_t>({in_dims[1]})};
-
-        std::fill(input1Grad.begin(), input1Grad.end(), std::numeric_limits<T>::quiet_NaN());
-        std::fill(input2Grad.begin(), input2Grad.end(), std::numeric_limits<T>::quiet_NaN());
-
-        ref_input1Grad = tensor<T>{std::vector<size_t>({in_dims[0]})};
-        ref_input2Grad = tensor<T>{std::vector<size_t>({in_dims[1]})};
-
-        input1_dev     = handle.Write(input1.data);
-        input2_dev     = handle.Write(input2.data);
-        outputGrad_dev = handle.Write(outputGrad.data);
-
-        input1Grad_dev = handle.Write(input1Grad.data);
-        input2Grad_dev = handle.Write(input2Grad.data);
-    }
-    void RunTest()
-    {
-        auto&& handle = get_handle();
-
-        cpu_outer_backward<T>(input1, input2, outputGrad, ref_input1Grad, ref_input2Grad);
-        miopenStatus_t status1, status2;
-
-        status1 = miopen::OuterBackwardGrad1(handle,
-                                             input2.desc,
-                                             input2_dev.get(),
-                                             input1Grad.desc,
-                                             input1Grad_dev.get(),
-                                             outputGrad.desc,
-                                             outputGrad_dev.get());
-
-        status2 = miopen::OuterBackwardGrad2(handle,
-                                             input1.desc,
-                                             input1_dev.get(),
-                                             input2Grad.desc,
-                                             input2Grad_dev.get(),
-                                             outputGrad.desc,
-                                             outputGrad_dev.get());
-
-        EXPECT_EQ(status1, miopenStatusSuccess);
-        EXPECT_EQ(status2, miopenStatusSuccess);
-
-        input1Grad.data = handle.Read<T>(input1Grad_dev, input1Grad.data.size());
-        input2Grad.data = handle.Read<T>(input2Grad_dev, input2Grad.data.size());
-    }
-
-    void Verify()
-    {
-        double threshold = std::numeric_limits<T>::epsilon();
-        auto error1      = miopen::rms_range(ref_input1Grad, input1Grad);
-        auto error2      = miopen::rms_range(ref_input1Grad, input1Grad);
-
-        EXPECT_TRUE(miopen::range_distance(ref_input1Grad) == miopen::range_distance(input1Grad));
-        EXPECT_TRUE(miopen::range_distance(ref_input2Grad) == miopen::range_distance(input2Grad));
-        EXPECT_TRUE(error1 < threshold * 10) << "Error1 output beyond tolerance Error:" << error1
-                                             << ",  Thresholdx10: " << threshold * 10;
-        EXPECT_TRUE(error2 < threshold * 10) << "Error2 output beyond tolerance Error:" << error2
-                                             << ",  Thresholdx10: " << threshold * 10;
-    }
-    OuterTestCase outer_config;
-
-    tensor<T> input1;
-    tensor<T> input2;
-    tensor<T> input1Grad;
-    tensor<T> input2Grad;
-    tensor<T> outputGrad;
-
-    tensor<T> ref_input1Grad;
-    tensor<T> ref_input2Grad;
-
-    miopen::Allocator::ManageDataPtr input1_dev;
-    miopen::Allocator::ManageDataPtr input2_dev;
-    miopen::Allocator::ManageDataPtr input1Grad_dev;
-    miopen::Allocator::ManageDataPtr input2Grad_dev;
-    miopen::Allocator::ManageDataPtr outputGrad_dev;
+    miopen::Allocator::ManageDataPtr x1_dev;
+    miopen::Allocator::ManageDataPtr x2_dev;
+    miopen::Allocator::ManageDataPtr y_dev;
 };

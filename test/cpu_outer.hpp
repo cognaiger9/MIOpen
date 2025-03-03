@@ -23,63 +23,22 @@
  * SOFTWARE.
  *
  *******************************************************************************/
-#ifndef GUARD_CPU_OUTER_HPP
-#define GUARD_CPU_OUTER_HPP
 
+#pragma once
+
+#include <miopen/tensor_view_utils.hpp>
 #include "tensor_holder.hpp"
+#include "tensor_view.hpp"
 
 template <class T>
-void cpu_outer_forward(tensor<T> input1, tensor<T> input2, tensor<T>& ref_output)
+void cpu_outer_forward(const tensor<T>& x1, const tensor<T>& x2, tensor<T>& ref_y)
 {
-    auto input1_dims = input1.desc.GetLengths();
-    auto input2_dims = input2.desc.GetLengths();
-    auto output_dims = ref_output.desc.GetLengths();
+    auto y_tv    = miopen::get_inner_expanded_tv<2>(ref_y.desc);
+    auto y_numel = ref_y.desc.GetElementSize();
 
-    size_t in_n = input1_dims[0];
-    size_t in_m = input2_dims[0];
-
-    size_t cnt = 0;
-
-    for(size_t i = 0; i < in_n; i++)
+    for(size_t i = 0; i < y_numel; i++)
     {
-        for(size_t j = 0; j < in_m; j++)
-        {
-            ref_output[cnt++] = input1[i] * input2[j];
-        }
+        tensor_layout_t<2> y_layout(y_tv, i);
+        ref_y[y_tv.get_tensor_view_idx(y_layout)] = x1[y_layout.layout[0]] * x2[y_layout.layout[1]];
     }
 }
-
-template <class T>
-void cpu_outer_backward(tensor<T> input1,
-                        tensor<T> input2,
-                        tensor<T> outputGrad,
-                        tensor<T>& input1Grad,
-                        tensor<T>& input2Grad)
-{
-    auto input1_dims = input1.desc.GetLengths();
-    auto input2_dims = input2.desc.GetLengths();
-    auto output_dims = outputGrad.desc.GetLengths();
-
-    size_t in_n = input1_dims[0];
-    size_t in_m = input2_dims[0];
-
-    for(size_t i = 0; i < in_n; i++)
-    {
-        float sum = 0;
-        for(size_t j = 0; j < in_m; j++)
-        {
-            sum += static_cast<float>(outputGrad[i * in_m + j]) * static_cast<float>(input2[j]);
-        }
-        input1Grad[i] = sum;
-    }
-    for(size_t j = 0; j < in_m; j++)
-    {
-        float sum = 0;
-        for(size_t i = 0; i < in_n; i++)
-        {
-            sum += static_cast<float>(input1[i]) * static_cast<float>(outputGrad[i * in_m + j]);
-        }
-        input2Grad[j] = sum;
-    }
-}
-#endif

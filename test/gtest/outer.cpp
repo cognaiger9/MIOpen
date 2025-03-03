@@ -25,137 +25,34 @@
  *******************************************************************************/
 
 #include "outer.hpp"
-#include <miopen/env.hpp>
-
-MIOPEN_DECLARE_ENV_VAR_STR(MIOPEN_TEST_FLOAT_ARG)
-MIOPEN_DECLARE_ENV_VAR_BOOL(MIOPEN_TEST_ALL)
-
-namespace env = miopen::env;
 
 namespace outer {
 
-std::string GetFloatArg()
-{
-    const auto tmp = env::value(MIOPEN_TEST_FLOAT_ARG);
-    if(tmp.empty())
-    {
-        return "";
-    }
-    return tmp;
-}
-
-struct OuterFwdTestFloat : OuterFwdTest<float>
-{
-};
-
-struct OuterBwdTestFloat : OuterBwdTest<float>
-{
-};
-
-struct OuterFwdTestHalf : OuterFwdTest<half_float::half>
-{
-};
-
-struct OuterBwdTestHalf : OuterBwdTest<half_float::half>
-{
-};
-
-struct OuterFwdTestBFloat16 : OuterFwdTest<bfloat16>
-{
-};
-
-struct OuterBwdTestBFloat16 : OuterBwdTest<bfloat16>
-{
-};
+using GPU_Outer_fwd_FP32  = OuterFwdTest<float>;
+using GPU_Outer_fwd_FP16  = OuterFwdTest<half_float::half>;
+using GPU_Outer_fwd_BFP16 = OuterFwdTest<bfloat16>;
 
 } // namespace outer
 using namespace outer;
 
-TEST_P(OuterFwdTestFloat, OuterFwdTest)
+TEST_P(GPU_Outer_fwd_FP32, Test)
 {
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
+    RunTest();
+    Verify();
 };
 
-TEST_P(OuterBwdTestFloat, OuterBwdTest)
+TEST_P(GPU_Outer_fwd_FP16, Test)
 {
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--float"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
+    RunTest();
+    Verify();
 };
 
-TEST_P(OuterFwdTestHalf, OuterFwdTest)
+TEST_P(GPU_Outer_fwd_BFP16, Test)
 {
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
+    RunTest();
+    Verify();
 };
 
-TEST_P(OuterBwdTestHalf, OuterBwdTest)
-{
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--half"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-};
-
-TEST_P(OuterFwdTestBFloat16, OuterFwdTest)
-{
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-};
-
-TEST_P(OuterBwdTestBFloat16, OuterBwdTest)
-{
-    if(env::enabled(MIOPEN_TEST_ALL) && (GetFloatArg() == "--bfloat16"))
-    {
-        RunTest();
-        Verify();
-    }
-    else
-    {
-        GTEST_SKIP();
-    }
-};
-
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterFwdTestFloat, testing::ValuesIn(OuterFwdTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterBwdTestFloat, testing::ValuesIn(OuterBwdTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterFwdTestHalf, testing::ValuesIn(OuterFwdTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet, OuterBwdTestHalf, testing::ValuesIn(OuterBwdTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet,
-                         OuterFwdTestBFloat16,
-                         testing::ValuesIn(OuterFwdTestConfigs()));
-INSTANTIATE_TEST_SUITE_P(OuterTestSet,
-                         OuterBwdTestBFloat16,
-                         testing::ValuesIn(OuterBwdTestConfigs()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Outer_fwd_FP32, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Outer_fwd_FP16, testing::ValuesIn(GenFullTestCases()));
+INSTANTIATE_TEST_SUITE_P(Full, GPU_Outer_fwd_BFP16, testing::ValuesIn(GenFullTestCases()));
