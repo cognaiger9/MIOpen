@@ -33,6 +33,7 @@
 #include <miopen/glu/solvers.hpp>
 #include <miopen/groupnorm/solvers.hpp>
 #include <miopen/getitem/solvers.hpp>
+#include <miopen/indexselect/solvers.hpp>
 #include <miopen/kthvalue/solvers.hpp>
 #include <miopen/layernorm/solvers.hpp>
 #include <miopen/pooling/solvers.hpp>
@@ -59,14 +60,6 @@
 MIOPEN_DECLARE_ENV_VAR_BOOL(MIOPEN_DEBUG_ENABLE_DEPRECATED_SOLVERS)
 
 namespace miopen {
-
-namespace debug {
-
-// NOLINTNEXTLINE (cppcoreguidelines-avoid-non-const-global-variables)
-bool enable_deprecated_solvers = false;
-
-} // namespace debug
-
 namespace solver {
 
 std::ostream& operator<<(std::ostream& os, const KernelInfo& k)
@@ -715,15 +708,15 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
              multimarginloss::MultiMarginLossForward{}.SolverDbId());
 
     Register(registry, ++id, Primitive::Mha, mha::MhaCKFlashAttentionV2Forward{}.SolverDbId());
+    Register(registry, ++id, Primitive::Indexing, indexselect::IndexSelectBackward{}.SolverDbId());
+    Register(registry, ++id, Primitive::Indexing, indexselect::IndexSelectForward{}.SolverDbId());
     // IMPORTANT: New solvers should be added to the end of the function, and don't leave a white
     // space between this comment and the newly registered solver(s)!
 }
 
 bool ThisSolverIsDeprecatedStatic::IsDisabled(const ExecutionContext& ctx)
 {
-    static const bool device_is_allowed = [&]() {
-        if(miopen::debug::enable_deprecated_solvers)
-            return true;
+    const bool device_is_allowed = [&]() {
         if(env::enabled(MIOPEN_DEBUG_ENABLE_DEPRECATED_SOLVERS))
             return true;
         const auto device = ctx.GetStream().GetTargetProperties().Name();
