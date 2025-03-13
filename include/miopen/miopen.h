@@ -8228,6 +8228,115 @@ MIOPEN_EXPORT miopenStatus_t miopenMultiMarginLossForward(miopenHandle_t handle,
 #endif // MIOPEN_BETA_API
 
 #ifdef MIOPEN_BETA_API
+
+/** @addtogroup ImageTransform
+ *
+ *  @{
+ */
+
+/*! @brief Adjust the hue of an image
+ *
+ * @param handle           MIOpen handle (input)
+ * @param inputTensorDesc  Tensor descriptor for input image (input)
+ * @param outputTensorDesc Tensor descriptor for output image (input)
+ * @param input        Pointer to input image buffer (input)
+ * @param output       Pointer to output image buffer (output)
+ * @param hue              Hue to be adjusted (in range of [-0.5, 0.5]) (input)
+ * @return                      miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenImageAdjustHue(miopenHandle_t handle,
+                                                  const miopenTensorDescriptor_t inputTensorDesc,
+                                                  const miopenTensorDescriptor_t outputTensorDesc,
+                                                  const void* input,
+                                                  void* output,
+                                                  float hue);
+
+/*! @brief Adjust the brightness of an image
+ *
+ * @param handle             MIOpen handle (input)
+ * @param inputTensorDesc    Tensor descriptor for input image (input)
+ * @param outputTensorDesc   Tensor descriptor for output image (input)
+ * @param input          Pointer to input image buffer (input)
+ * @param output        Pointer to output image buffer (output)
+ * @param brightness_factor  Brightness factor to be adjusted (input)
+ * @return     miopenStatus_t
+ */
+
+MIOPEN_EXPORT miopenStatus_t
+miopenImageAdjustBrightness(miopenHandle_t handle,
+                            const miopenTensorDescriptor_t inputTensorDesc,
+                            const miopenTensorDescriptor_t outputTensorDesc,
+                            const void* input,
+                            void* output,
+                            float brightness_factor);
+
+/**
+ * @brief Normalize an image.
+ *
+ * @param handle            MIOpen handle (input)
+ * @param inputTensorDesc   Tensor descriptor of the input image (input)
+ * @param meanTensorDesc    Tensor descriptor of the mean tensor (input)
+ * @param stdTensorDesc     Tensor descriptor of the standard deviation tensor (input)
+ * @param outputTensorDesc  Tensor descriptor of the output image (input)
+ * @param input         Pointer to the input image buffer (input)
+ * @param mean          Pointer to the mean tensor buffer (input)
+ * @param std           Pointer to the standard deviation tensor buffer (input)
+ * @param output       Pointer to the output image buffer (output)
+ * @return     miopenStatus_t
+ */
+MIOPEN_EXPORT miopenStatus_t miopenImageNormalize(miopenHandle_t handle,
+                                                  const miopenTensorDescriptor_t inputTensorDesc,
+                                                  const miopenTensorDescriptor_t meanTensorDesc,
+                                                  const miopenTensorDescriptor_t stdTensorDesc,
+                                                  const miopenTensorDescriptor_t outputTensorDesc,
+                                                  const void* input,
+                                                  const void* mean,
+                                                  const void* std,
+                                                  void* output);
+
+/**
+ * @brief Adjusts the saturation of an image.
+ *
+ * @param handle                   MIOpen handle (input)
+ * @param  inputTensorDesc          Tensor descriptor of the input image (input)
+ * @param  outputTensorDesc         Tensor descriptor of the output image (input)
+ * @param  input                Pointer to the input image buffer (input)
+ * @param  workspace            Pointer to the workspace buffer (input)
+ * @param output               Pointer to the output image buffer (output)
+ * @param  saturation_factor          Factor to adjust the saturation by (input)
+ *
+ * @return    miopenStatus_t
+ *
+ */
+
+MIOPEN_EXPORT miopenStatus_t
+miopenImageAdjustSaturation(miopenHandle_t handle,
+                            const miopenTensorDescriptor_t inputTensorDesc,
+                            const miopenTensorDescriptor_t outputTensorDesc,
+                            const void* input,
+                            void* workspace,
+                            void* output,
+                            float saturation_factor);
+
+/**
+ * @brief Retrieves the workspace size required for the miopenAdjustSaturation function.
+ *
+ * @param  handle                   MIOpen handle (input)
+ * @param  inputTensorDesc          Tensor descriptor for the input image (input)
+ * @param  outputTensorDesc         Tensor descriptor for the output image (input)
+ * @param workspace_size           Size of the workspace buffer (output)
+ * @return     miopenStatus_t
+ *
+ */
+MIOPEN_EXPORT miopenStatus_t
+miopenImageAdjustSaturationGetWorkspaceSize(miopenHandle_t handle,
+                                            const miopenTensorDescriptor_t inputTensorDesc,
+                                            const miopenTensorDescriptor_t outputTensorDesc,
+                                            float saturation_factor,
+                                            size_t* workspace_size);
+
+/** @} */
+
 // IndexSelect APIs
 /** @addtogroup indexing
  *

@@ -149,6 +149,9 @@ set( MIOpen_Source
     groupnorm/problem_description.cpp
     indexselect/problem_description.cpp
     handle_api.cpp
+    image_transform.cpp
+    image_transform_api.cpp
+    image_transform/problem_description.cpp
     indexselect_api.cpp
     invoker_cache.cpp
     getitem/problem_description.cpp
@@ -305,6 +308,10 @@ set( MIOpen_Source
     solver/glu/forward_glu.cpp
     solver/groupnorm/forward_groupnorm.cpp
     solver/getitem/backward_getitem.cpp
+    solver/image_transform/adjust_brightness.cpp
+    solver/image_transform/adjust_hue.cpp
+    solver/image_transform/adjust_saturation.cpp
+    solver/image_transform/normalize.cpp
     solver/indexselect/backward_indexselect.cpp
     solver/indexselect/forward_indexselect.cpp
     solver/kthvalue/forward_kthvalue.cpp
@@ -600,6 +607,10 @@ if( MIOPEN_BACKEND MATCHES "OpenCL" OR MIOPEN_BACKEND STREQUAL "HIPOC" OR MIOPEN
         kernels/conv7x7c3h224w224k64u2v2p3q3f1.s
         kernels/xform_out.s
         kernels/gcnAsmBNBwdTrainSpatial.s
+        kernels/MIOpenImageAdjustBrightness.cpp
+        kernels/MIOpenImageAdjustHue.cpp
+        kernels/MIOpenImageBlend.cpp
+        kernels/MIOpenImageNormalize.cpp
         kernels/MIOpenTensorKernels.cl
         kernels/MIOpenTensorKernelsHip.cpp
         kernels/MIOpenSubTensorOpWithScalarKernel.cl

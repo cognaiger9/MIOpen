@@ -65,6 +65,7 @@ enum class Primitive
     Kthvalue,
     SoftMarginLoss,
     MultiMarginLoss,
+    ImageTransform
     Indexing
 };
 

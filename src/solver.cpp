@@ -33,6 +33,7 @@
 #include <miopen/glu/solvers.hpp>
 #include <miopen/groupnorm/solvers.hpp>
 #include <miopen/getitem/solvers.hpp>
+#include <miopen/image_transform/solvers.hpp>
 #include <miopen/indexselect/solvers.hpp>
 #include <miopen/kthvalue/solvers.hpp>
 #include <miopen/layernorm/solvers.hpp>
@@ -708,6 +709,24 @@ inline SolverRegistrar::SolverRegistrar(IdRegistryData& registry)
              multimarginloss::MultiMarginLossForward{}.SolverDbId());
 
     Register(registry, ++id, Primitive::Mha, mha::MhaCKFlashAttentionV2Forward{}.SolverDbId());
+
+    Register(registry,
+             ++id,
+             Primitive::ImageTransform,
+             image_transform::adjust_hue::ImageAdjustHue{}.SolverDbId());
+    Register(registry,
+             ++id,
+             Primitive::ImageTransform,
+             image_transform::adjust_brightness::ImageAdjustBrightness{}.SolverDbId());
+    Register(registry,
+             ++id,
+             Primitive::ImageTransform,
+             image_transform::normalize::ImageNormalize{}.SolverDbId());
+    Register(registry,
+             ++id,
+             Primitive::ImageTransform,
+             image_transform::adjust_saturation::ImageAdjustSaturation{}.SolverDbId());
+
     Register(registry, ++id, Primitive::Indexing, indexselect::IndexSelectBackward{}.SolverDbId());
     Register(registry, ++id, Primitive::Indexing, indexselect::IndexSelectForward{}.SolverDbId());
     // IMPORTANT: New solvers should be added to the end of the function, and don't leave a white
