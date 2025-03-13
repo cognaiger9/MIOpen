@@ -66,6 +66,7 @@ enum class Primitive
     SoftMarginLoss,
     MultiMarginLoss,
     ImageTransform
+    Indexing
 };
 
 struct MIOPEN_INTERNALS_EXPORT Id

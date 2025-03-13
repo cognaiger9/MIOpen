@@ -44,9 +44,9 @@
 using half         = half_float::half;
 using hip_bfloat16 = bfloat16;
 #include <hip_float8.hpp>
-using float16 = half_float::half;
-using float8  = miopen_f8::hip_f8<miopen_f8::hip_f8_type::fp8>;
-using bfloat8 = miopen_f8::hip_f8<miopen_f8::hip_f8_type::bf8>;
+using float16      = half_float::half;
+using float8_fnuz  = miopen_f8::hip_f8<miopen_f8::hip_f8_type::fp8>;
+using bfloat8_fnuz = miopen_f8::hip_f8<miopen_f8::hip_f8_type::bf8>;
 #include <numeric>
 #include <vector>
 
@@ -316,6 +316,7 @@ inline void PadBufferSize(size_t& sz, int datatype_sz)
            "prelu[bfp16|fp16], kthvalue[bfp16|fp16], glu[bfp16|fp16], softmarginloss[bfp16|fp16], "
            "multimarginloss[bfp16|fp16], imageadjustbrightness[fp16|bfp16], "
            "imageadjusthue[fp16|bfp16], "
+           "multimarginloss[bfp16|fp16], indexselect[bfp16|fp16],"
            "imageadjustsaturation[fp16|bfp16], imagenormalize[fp16|bfp16]\n");
     exit(0); // NOLINT (concurrency-mt-unsafe)
 }
@@ -359,7 +360,8 @@ inline std::string ParseBaseArg(int argc, char* argv[])
        arg != "imageadjustbrightnessbfp16" && arg != "imagenormalize" &&
        arg != "imagenormalizefp16" && arg != "imagenormalizebfp16" &&
        arg != "imageadjustsaturation" && arg != "imageadjustsaturationfp16" &&
-       arg != "imageadjustsaturationbfp16" && arg != "--version")
+       arg != "imageadjustsaturationbfp16" && arg != "indexselect" && arg != "indexselectfp16" && arg != "indexselectbfp16" &&
+       arg != "--version")
     {
         printf("FAILED: Invalid Base Input Argument\n");
         Usage();
@@ -442,14 +444,14 @@ inline void Driver::InitDataType<bfloat16>()
     data_type = miopenBFloat16;
 }
 template <>
-inline void Driver::InitDataType<float8>()
+inline void Driver::InitDataType<float8_fnuz>()
 {
-    data_type = miopenFloat8;
+    data_type = miopenFloat8_fnuz;
 }
 template <>
-inline void Driver::InitDataType<bfloat8>()
+inline void Driver::InitDataType<bfloat8_fnuz>()
 {
-    data_type = miopenBFloat8;
+    data_type = miopenBFloat8_fnuz;
 }
 // "std::is_same<Tgpu, float>{}" used to avoid "static_assert" compilation error,
 // which occurs when the condition does not depend in any way on the template parameters.
